@@ -16,7 +16,7 @@ pub fn get_process_path(process_id: u32) -> Result<String, windows::core::Error>
             process_id,
         )?;
         let mut buffer = vec![0u16; 1024];
-        let size = K32GetModuleFileNameExW(HANDLE(process_handle.0), None, &mut buffer);
+        let size = K32GetModuleFileNameExW(Some(HANDLE(process_handle.0)), None, &mut buffer);
         CloseHandle(process_handle).unwrap();
 
         if size == 0 {

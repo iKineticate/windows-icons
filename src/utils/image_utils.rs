@@ -13,7 +13,6 @@ use image::RgbaImage;
 use windows::{
     core::PCWSTR,
     Win32::{
-        Foundation::HWND,
         Graphics::Gdi::{
             DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO,
             BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HDC, HGDIOBJ,
@@ -33,11 +32,11 @@ pub unsafe fn icon_to_image(icon: HICON) -> RgbaImage {
     let mut info = MaybeUninit::uninit();
     GetIconInfo(icon, info.as_mut_ptr()).unwrap();
     let info = info.assume_init();
-    DeleteObject(info.hbmMask).unwrap();
+    DeleteObject(HGDIOBJ::from(info.hbmMask)).unwrap();
 
     let mut bitmap: MaybeUninit<BITMAP> = MaybeUninit::uninit();
     let result = GetObjectW(
-        HGDIOBJ(info.hbmColor.0),
+        HGDIOBJ::from(info.hbmColor),
         bitmap_size_i32,
         Some(bitmap.as_mut_ptr().cast()),
     );
@@ -51,7 +50,7 @@ pub unsafe fn icon_to_image(icon: HICON) -> RgbaImage {
     let buf_size = width_usize.checked_mul(height_usize).unwrap();
     let mut buf: Vec<u32> = Vec::with_capacity(buf_size);
 
-    let dc = GetDC(HWND(ptr::null_mut()));
+    let dc = GetDC(None);
     assert!(dc != HDC(ptr::null_mut()));
 
     let mut bitmap_info = BITMAPINFO {
@@ -82,9 +81,9 @@ pub unsafe fn icon_to_image(icon: HICON) -> RgbaImage {
     assert!(result == bitmap.bmHeight);
     buf.set_len(buf.capacity());
 
-    let result = ReleaseDC(HWND(ptr::null_mut()), dc);
+    let result = ReleaseDC(None, dc);
     assert!(result == 1);
-    DeleteObject(info.hbmColor).unwrap();
+    DeleteObject(HGDIOBJ::from(info.hbmColor)).unwrap();
 
     RgbaImage::from_fn(width_u32, height_u32, |x, y| {
         let x_usize = usize::try_from(x).unwrap();
