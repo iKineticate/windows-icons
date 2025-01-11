@@ -136,9 +136,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
         .map_err(|_| io::Error::new(ErrorKind::Other, "failed to delete color bitmap."))?;
 
     Ok(RgbaImage::from_fn(width_u32, height_u32, |x, y| {
-        let x_usize = usize::try_from(x).unwrap();
-        let y_usize = usize::try_from(y).unwrap();
-        let idx = y_usize * width_usize + x_usize;
+        let idx = y as usize * width_usize + x as usize;
         let [b, g, r, a] = buf[idx].to_le_bytes();
         [r, g, b, a].into()
     }))
