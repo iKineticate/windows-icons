@@ -1,9 +1,13 @@
 use std::{
-    error::Error, ffi::OsStr, fs, io::{self, ErrorKind}, path::Path
+    error::Error,
+    ffi::OsStr,
+    fs,
+    io::{self, ErrorKind},
+    path::Path,
 };
 
-use image::RgbaImage;
 use glob::glob;
+use image::RgbaImage;
 
 use crate::utils::image_utils::{icon_to_base64, icon_to_image};
 
@@ -12,8 +16,12 @@ pub fn get_uwp_icon<P: AsRef<Path>>(file_path: P) -> Result<RgbaImage, Box<dyn E
     let icon_path = get_icon_file_path(path)?;
     let rgba_image = icon_to_image(&icon_path).map_err(|e| {
         io::Error::new(
-            io::ErrorKind::Other,
-            format!("Failed to get icon image for path: '{}'\n{}", path.display(), e),
+            ErrorKind::Other,
+            format!(
+                "Failed to get icon image for path: '{}'\n{}",
+                path.display(),
+                e
+            ),
         )
     })?;
     Ok(rgba_image)
@@ -24,8 +32,12 @@ pub fn get_uwp_icon_base64<P: AsRef<Path>>(file_path: P) -> Result<String, Box<d
     let icon_path = get_icon_file_path(path)?;
     let base64 = icon_to_base64(&icon_path).map_err(|e| {
         io::Error::new(
-            io::ErrorKind::Other,
-            format!("Failed to get icon base64 for path: '{}'\n{}", path.display(), e),
+            ErrorKind::Other,
+            format!(
+                "Failed to get icon base64 for path: '{}'\n{}",
+                path.display(),
+                e
+            ),
         )
     })?;
     Ok(base64)
@@ -34,7 +46,7 @@ pub fn get_uwp_icon_base64<P: AsRef<Path>>(file_path: P) -> Result<String, Box<d
 fn get_icon_file_path(app_path: &Path) -> Result<String, Box<dyn Error>> {
     if app_path.exists() {
         return Err(Box::new(io::Error::new(
-            io::ErrorKind::NotFound,
+            ErrorKind::NotFound,
             format!("app path does not exist: {}", app_path.display()),
         )));
     }
@@ -67,7 +79,12 @@ fn get_icon_file_path(app_path: &Path) -> Result<String, Box<dyn Error>> {
             find_matching_logo_file(&icon_full_path, package_folder)
         }
     } else {
-        fuzzy_get_icon_file_path(package_folder).map_err(|e| Box::new(io::Error::new(ErrorKind::Other, format!("AppxManifest.xml does not exist and {e}"))) as Box<dyn Error>)
+        fuzzy_get_icon_file_path(package_folder).map_err(|e| {
+            Box::new(io::Error::new(
+                ErrorKind::Other,
+                format!("AppxManifest.xml does not exist and {e}"),
+            )) as Box<dyn Error>
+        })
     }
 }
 
@@ -90,35 +107,42 @@ fn extract_icon_path(manifest_content: &str) -> Result<String, Box<dyn Error>> {
     )))
 }
 
-fn find_matching_logo_file(icon_full_path: &Path, package_folder: &Path) -> Result<String, Box<dyn Error>> {
-    let parent_path = icon_full_path.parent().ok_or_else(|| io::Error::new(
-        ErrorKind::NotFound,
-        "no directory found"
-    ))?;
-    
-    let filter_name = icon_full_path.file_stem().ok_or_else(|| io::Error::new(
-        ErrorKind::NotFound,
-        "no file name found"
-    ))?;
+fn find_matching_logo_file(
+    icon_full_path: &Path,
+    package_folder: &Path,
+) -> Result<String, Box<dyn Error>> {
+    let parent_path = icon_full_path
+        .parent()
+        .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no directory found"))?;
 
-    let extension = icon_full_path.extension().ok_or_else(|| io::Error::new(
-        ErrorKind::NotFound,
-        "no extension found"
-    ))?;
+    let filter_name = icon_full_path
+        .file_stem()
+        .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no file name found"))?;
+
+    let extension = icon_full_path
+        .extension()
+        .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no extension found"))?;
 
     // '*' might be ".scale-size", and may include theme characters "contrast-white" and "contrast-black"
-    let pattern = format!("{}/{}*.{}", parent_path.display(), filter_name.to_string_lossy(), extension.to_string_lossy());
+    let pattern = format!(
+        "{}/{}*.{}",
+        parent_path.display(),
+        filter_name.to_string_lossy(),
+        extension.to_string_lossy()
+    );
     let exclude_theme = ["contrast-white", "contrast-black"];
     let mut matching_logo_files = Vec::new();
 
     for logo_path in glob(&pattern)?.filter_map(Result::ok) {
         if logo_path.is_file() {
             if let Some(file_name) = logo_path.file_stem().and_then(OsStr::to_str) {
-                if !exclude_theme.iter().any(|&n| file_name.trim().to_lowercase().contains(n)) {
-                    let metadata = fs::metadata(&logo_path).map_err(|_| io::Error::new(
-                        ErrorKind::NotFound,
-                        "failed to get logo information"
-                    ))?;
+                if !exclude_theme
+                    .iter()
+                    .any(|&n| file_name.trim().to_lowercase().contains(n))
+                {
+                    let metadata = fs::metadata(&logo_path).map_err(|_| {
+                        io::Error::new(ErrorKind::NotFound, "failed to get logo information")
+                    })?;
                     let logo_path = logo_path.to_string_lossy().into_owned();
                     let logo_size = metadata.len();
                     matching_logo_files.push((logo_path, logo_size));
@@ -149,10 +173,12 @@ fn fuzzy_get_icon_file_path(package_folder: &Path) -> Result<String, Box<dyn Err
             let pattern = format!("{}/**/{}.{}", package_folder.display(), name, ext);
             for logo_path in glob(&pattern)?.filter_map(Result::ok) {
                 if logo_path.is_file() {
-                    let metadata = fs::metadata(&logo_path).map_err(|_| io::Error::new(
-                        ErrorKind::NotFound,
-                        format!("failed to get logo information")
-                    ))?;
+                    let metadata = fs::metadata(&logo_path).map_err(|_| {
+                        io::Error::new(
+                            ErrorKind::NotFound,
+                            format!("failed to get logo information"),
+                        )
+                    })?;
                     let logo_path = logo_path.to_string_lossy().into_owned();
                     let logo_size = metadata.len();
                     matching_logo_files.push((logo_path, logo_size));
@@ -165,10 +191,7 @@ fn fuzzy_get_icon_file_path(package_folder: &Path) -> Result<String, Box<dyn Err
         .iter()
         .max_by_key(|(_, size)| size)
         .map(|(path, _)| path.to_owned())
-        .ok_or_else(|| io::Error::new(
-            io::ErrorKind::NotFound,
-            "no matching logo files found",
-        ))?;
+        .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no matching logo files found"))?;
 
     Ok(max_size_logo_file_path)
 }
