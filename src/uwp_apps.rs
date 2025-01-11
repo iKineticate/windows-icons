@@ -7,43 +7,44 @@ use glob::glob;
 
 use crate::utils::image_utils::{icon_to_base64, icon_to_image};
 
-pub fn get_uwp_icon(process_path: &str) -> Result<RgbaImage, Box<dyn Error>> {
-    let icon_path = get_icon_file_path(process_path)?;
+pub fn get_uwp_icon<P: AsRef<Path>>(file_path: P) -> Result<RgbaImage, Box<dyn Error>> {
+    let path = file_path.as_ref();
+    let icon_path = get_icon_file_path(path)?;
     let rgba_image = icon_to_image(&icon_path).map_err(|e| {
         io::Error::new(
             io::ErrorKind::Other,
-            format!("Failed to get icon image for path: '{process_path}'\n{e}"),
+            format!("Failed to get icon image for path: '{}'\n{}", path.display(), e),
         )
     })?;
     Ok(rgba_image)
 }
 
-pub fn get_uwp_icon_base64(process_path: &str) -> Result<String, Box<dyn Error>> {
-    let icon_path = get_icon_file_path(process_path)?;
+pub fn get_uwp_icon_base64<P: AsRef<Path>>(file_path: P) -> Result<String, Box<dyn Error>> {
+    let path = file_path.as_ref();
+    let icon_path = get_icon_file_path(path)?;
     let base64 = icon_to_base64(&icon_path).map_err(|e| {
         io::Error::new(
             io::ErrorKind::Other,
-            format!("Failed to get icon base64 for path: '{process_path}'\n{e}"),
+            format!("Failed to get icon base64 for path: '{}'\n{}", path.display(), e),
         )
     })?;
     Ok(base64)
 }
 
-fn get_icon_file_path(app_path: &str) -> Result<String, Box<dyn Error>> {
-    if !Path::new(app_path).exists() {
+fn get_icon_file_path(app_path: &Path) -> Result<String, Box<dyn Error>> {
+    if app_path.exists() {
         return Err(Box::new(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("app path does not exist: {app_path}"),
+            format!("app path does not exist: {}", app_path.display()),
         )));
     }
 
-    let package_folder = Path::new(app_path).parent().ok_or_else(|| {
+    let package_folder = app_path.parent().ok_or_else(|| {
         io::Error::new(
             ErrorKind::NotFound,
-            format!("failed to get parent directory: '{app_path}'"),
+            format!("failed to get parent directory: '{}'", app_path.display()),
         )
     })?;
-
     let manifest_path = package_folder.join("AppxManifest.xml");
     if manifest_path.exists() {
         let manifest_content = fs::read_to_string(&manifest_path).map_err(|_| {
