@@ -1,4 +1,7 @@
-use std::error::Error;
+use std::{
+    error::Error,
+    io::{self, ErrorKind},
+};
 
 use base64::engine::general_purpose;
 use base64::Engine as _;
@@ -16,13 +19,23 @@ mod uwp_apps;
 pub fn get_icon_by_process_id(process_id: u32) -> Result<RgbaImage, Box<dyn Error>> {
     let process_path =
         get_process_path(process_id).map_err(|e| format!("Failed to get process path: {e}."))?;
-    get_icon_by_path(&process_path)
+    get_icon_by_path(&process_path).map_err(|e| {
+        Box::new(io::Error::new(
+            ErrorKind::Other,
+            format!("Failed to get process icon: {e}"),
+        )) as Box<dyn Error>
+    })
 }
 
 pub fn get_icon_base64_by_process_id(process_id: u32) -> Result<String, Box<dyn Error>> {
     let process_path =
         get_process_path(process_id).map_err(|e| format!("Failed to get process path: {e}."))?;
-    get_icon_base64_by_path(&process_path)
+    get_icon_base64_by_path(&process_path).map_err(|e| {
+        Box::new(io::Error::new(
+            ErrorKind::Other,
+            format!("Failed to get process icon base64: {e}"),
+        )) as Box<dyn Error>
+    })
 }
 
 pub fn get_icon_by_path(path: &str) -> Result<RgbaImage, Box<dyn Error>> {
