@@ -44,10 +44,10 @@ pub fn get_uwp_icon_base64<P: AsRef<Path>>(file_path: P) -> Result<String, Box<d
 }
 
 fn get_icon_file_path(app_path: &Path) -> Result<String, Box<dyn Error>> {
-    if app_path.exists() {
+    if !app_path.exists() {
         return Err(Box::new(io::Error::new(
             ErrorKind::NotFound,
-            format!("app path does not exist: {}", app_path.display()),
+            format!("app path does not exist: '{}'", app_path.display()),
         )));
     }
 
