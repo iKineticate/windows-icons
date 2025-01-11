@@ -113,23 +113,24 @@ fn find_matching_logo_file(
 ) -> Result<String, Box<dyn Error>> {
     let parent_path = icon_full_path
         .parent()
+        .map(Path::to_str)
+        .flatten()
         .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no directory found"))?;
 
     let filter_name = icon_full_path
         .file_stem()
+        .map(OsStr::to_str)
+        .flatten()
         .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no file name found"))?;
 
     let extension = icon_full_path
         .extension()
+        .map(OsStr::to_str)
+        .flatten()
         .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no extension found"))?;
 
     // '*' might be ".scale-size", and may include theme characters "contrast-white" and "contrast-black"
-    let pattern = format!(
-        "{}/{}*.{}",
-        parent_path.display(),
-        filter_name.to_string_lossy(),
-        extension.to_string_lossy()
-    );
+    let pattern = format!("{parent_path}/{filter_name}*.{extension}");
     let exclude_theme = ["contrast-white", "contrast-black"];
     let mut matching_logo_files = Vec::new();
 
