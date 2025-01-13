@@ -1,7 +1,12 @@
+use std::{
+    error::Error,
+    io::{self, ErrorKind},
+};
+
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use image::RgbaImage;
-use utils::image_utils::{get_hicon, icon_to_image};
+use utils::image_utils::{get_hicon, hicon_to_image};
 use utils::process_utils::get_process_path;
 use uwp_apps::{get_uwp_icon, get_uwp_icon_base64};
 
@@ -11,39 +16,51 @@ mod utils {
 }
 mod uwp_apps;
 
-pub fn get_icon_by_process_id(process_id: u32) -> RgbaImage {
-    let path = get_process_path(process_id).expect("Failed to get process path");
-    println!("Path: {}", path);
-    if path.contains("WindowsApps") {
-        return get_uwp_icon(&path).expect("Failed to get UWP icon");
-    } else {
-        return get_icon_by_path(&path);
-    }
+pub fn get_icon_by_process_id(process_id: u32) -> Result<RgbaImage, Box<dyn Error>> {
+    let process_path =
+        get_process_path(process_id).map_err(|e| format!("Failed to get process path: {e}."))?;
+    get_icon_by_path(&process_path).map_err(|e| {
+        Box::new(io::Error::new(
+            ErrorKind::Other,
+            format!("Failed to get process icon: {e}"),
+        )) as Box<dyn Error>
+    })
 }
 
-pub fn get_icon_by_path(path: &str) -> RgbaImage {
+pub fn get_icon_base64_by_process_id(process_id: u32) -> Result<String, Box<dyn Error>> {
+    let process_path =
+        get_process_path(process_id).map_err(|e| format!("Failed to get process path: {e}."))?;
+    get_icon_base64_by_path(&process_path).map_err(|e| {
+        Box::new(io::Error::new(
+            ErrorKind::Other,
+            format!("Failed to get process icon base64: {e}"),
+        )) as Box<dyn Error>
+    })
+}
+
+pub fn get_icon_by_path(path: &str) -> Result<RgbaImage, Box<dyn Error>> {
+    // Excluding ..\Users\MyUser\AppData\Local\Microsoft\WindowsApps and WSA applications.
+    if path.contains("Program Files\\WindowsApps") && !path.contains("WindowsSubsystemForAndroid") {
+        return get_uwp_icon(path);
+    }
+
     unsafe {
-        let icon = get_hicon(path);
-        icon_to_image(icon)
+        let hicon = get_hicon(path)?;
+        hicon_to_image(hicon)
     }
 }
 
-pub fn get_icon_base64_by_process_id(process_id: u32) -> String {
-    let path = get_process_path(process_id).expect("Failed to get process path");
-    get_icon_base64_by_path(&path)
-}
-
-pub fn get_icon_base64_by_path(path: &str) -> String {
-    if path.contains("WindowsApps") {
-        return get_uwp_icon_base64(path).expect("Failed to get UWP icon base64");
+pub fn get_icon_base64_by_path(path: &str) -> Result<String, Box<dyn Error>> {
+    // Excluding ..\Users\MyUser\AppData\Local\Microsoft\WindowsApps and WSA applications.
+    if path.contains("Program Files\\WindowsApps") && !path.contains("WindowsSubsystemForAndroid") {
+        return get_uwp_icon_base64(path);
     }
-    let icon_image = get_icon_by_path(path);
+
+    let icon_image = get_icon_by_path(path)?;
     let mut buffer = Vec::new();
-    icon_image
-        .write_to(
-            &mut std::io::Cursor::new(&mut buffer),
-            image::ImageFormat::Png,
-        )
-        .unwrap();
-    general_purpose::STANDARD.encode(buffer)
+    icon_image.write_to(
+        &mut std::io::Cursor::new(&mut buffer),
+        image::ImageFormat::Png,
+    )?;
+    Ok(general_purpose::STANDARD.encode(buffer))
 }

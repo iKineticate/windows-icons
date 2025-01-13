@@ -15,7 +15,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-windows-icons = "0.1.1"
+windows-icons = "0.2.0"
 ```
 
 ## Usage
@@ -24,21 +24,21 @@ Here are some examples of how to use the Windows Icons library:
 
 ```rust
 // Get icon as an image from a file path
-let icon = get_icon_image_by_path("C:\\Windows\\System32\\notepad.exe");
+let icon = get_icon_image_by_path("C:\\Windows\\System32\\notepad.exe").unwrap();
 icon.save("notepad.png").unwrap();
 
 // Get icon as a base64 string from a file path
-let base64 = get_icon_base64_by_path("C:\\Windows\\System32\\calc.exe");
+let base64 = get_icon_base64_by_path("C:\\Windows\\System32\\calc.exe").unwrap();
 println!("Calculator icon: {}", base64);
 
 // Get icon as an image from a process ID
 let process_id = 1234;
 
-let icon = get_icon_image_by_process_id(process_id);
+let icon = get_icon_image_by_process_id(process_id).unwrap();
 icon.save("process.png").unwrap();
 
 // Get icon as a base64 encoded string from a process ID
-let base64 = get_icon_base64_by_process_id(process_id);
+let base64 = get_icon_base64_by_process_id(process_id).unwrap();
 println!("Process {} icon: {}", process_id, base64);
 ```
 
@@ -48,10 +48,10 @@ For more examples, check the `examples/main.rs` file in the repository.
 
 The library provides the following functionality:
 
-- `get_icon_by_path(path: &str) -> RgbaImage`
-- `get_icon_base64_by_path(path: &str) -> String`
-- `get_icon_by_process_id(process_id: u32) -> RgbaImage`
-- `get_icon_base64_by_process_id(process_id: u32) -> String`
+- `get_icon_by_path(path: &str) -> Result<RgbaImage, Box<dyn Error>>`
+- `get_icon_base64_by_path(path: &str) -> Result<String, Box<dyn Error>>`
+- `get_icon_by_process_id(process_id: u32) -> Result<RgbaImage, Box<dyn Error>>`
+- `get_icon_base64_by_process_id(process_id: u32) -> Result<String, Box<dyn Error>>`
 
 ## Requirements
 
@@ -71,6 +71,7 @@ This library uses the following crates:
 
 - `image` for image processing
 - `base64` for base64 encoding
+- `glob` for matching file paths
 - `winapi` and `windows` for Windows API interactions
 
 ## Disclaimer
