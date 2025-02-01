@@ -1,26 +1,22 @@
 # Windows Icons
 
-A simple Rust library to extract icons from files and processes on Windows.
+A simple Rust library to extract icons from files and running processes on Windows platforms.
 
 ## Features
 
-- Extract icons from files by path
-- Extract icons from running processes by process ID
-- Convert icons to PNG images
-- Convert icons to base64-encoded strings
+- Retrieve icons by file path or process id
+- Save as a PNG or base64 encoded string
 
 ## Installation
 
-Add this to your `Cargo.toml`:
+Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-windows-icons = "0.2.0"
+windows-icons = "0.2.1"
 ```
 
 ## Usage
-
-Here are some examples of how to use the Windows Icons library:
 
 ```rust
 // Get icon as an image from a file path
@@ -42,16 +38,7 @@ let base64 = get_icon_base64_by_process_id(process_id).unwrap();
 println!("Process {} icon: {}", process_id, base64);
 ```
 
-For more examples, check the `examples/main.rs` file in the repository.
-
-## API
-
-The library provides the following functionality:
-
-- `get_icon_by_path(path: &str) -> Result<RgbaImage, Box<dyn Error>>`
-- `get_icon_base64_by_path(path: &str) -> Result<String, Box<dyn Error>>`
-- `get_icon_by_process_id(process_id: u32) -> Result<RgbaImage, Box<dyn Error>>`
-- `get_icon_base64_by_process_id(process_id: u32) -> Result<String, Box<dyn Error>>`
+For more examples, check the [`examples/main.rs`](examples/main.rs).
 
 ## Requirements
 
@@ -59,7 +46,7 @@ This library is designed to work on Windows systems only.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [`LICENSE`](LICENSE) for details.
 
 ## Contributing
 
