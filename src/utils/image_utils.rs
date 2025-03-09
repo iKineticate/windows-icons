@@ -28,7 +28,7 @@ struct ScopedDc(HDC);
 
 impl Drop for ScopedDc {
     fn drop(&mut self) {
-        if !self.0.is_invalid() {
+        if !self.0.0.is_null() {
             unsafe {
                 ReleaseDC(None, self.0);
             }
@@ -40,7 +40,7 @@ struct AutoBitmap(HBITMAP);
 
 impl Drop for AutoBitmap {
     fn drop(&mut self) {
-        if !self.0.is_invalid() {
+        if !self.0.0.is_null() {
             unsafe {
                 let _ = DeleteObject(HGDIOBJ::from(self.0));
             }
@@ -52,7 +52,7 @@ struct AutoIcon(HICON);
 
 impl Drop for AutoIcon {
     fn drop(&mut self) {
-        if !self.0.is_invalid() {
+        if !self.0.0.is_null() {
             unsafe {
                 let _ = DestroyIcon(self.0);
             }
@@ -75,19 +75,20 @@ pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
     };
 
     if result == 0 {
+        let last_error = windows::core::Error::from_win32();
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
-            format!("failed to get hIcon for the file: {file_path}."),
+            format!("failed to get hIcon for the file: {file_path}: {last_error}."),
         )));
     }
 
     let shfileinfo = unsafe { shfileinfo.assume_init() };
     let hicon = shfileinfo.hIcon;
 
-    if hicon.is_invalid() {
+    if hicon.0.is_null() {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
-            format!("hIcon is invalid."),
+            "hIcon is invalid.",
         )));
     }
 
@@ -140,7 +141,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     let mut buf = vec![0u32; buf_size];
 
     let dc = unsafe { GetDC(None) };
-    if dc.is_invalid() {
+    if dc.0.is_null() {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
             "GetDC returned null",
