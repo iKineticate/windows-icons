@@ -14,7 +14,7 @@ use windows::{
     Win32::{
         Graphics::Gdi::{
             BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
-            GetDIBits, GetObjectW, HGDIOBJ, ReleaseDC,
+            GetDIBits, GetObjectW, HDC, HGDIOBJ, ReleaseDC,
         },
         Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES,
         UI::{
@@ -24,6 +24,14 @@ use windows::{
     },
     core::PCWSTR,
 };
+
+struct ScopedDc(HDC);
+
+impl Drop for ScopedDc {
+    fn drop(&mut self) {
+        unsafe { ReleaseDC(None, self.0) };
+    }
+}
 
 pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
     let wide_path: Vec<u16> = OsStr::new(file_path).encode_wide().chain(Some(0)).collect();
@@ -109,6 +117,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
             "GetDC returned null",
         )));
     }
+    let _dc_guard = ScopedDc(dc);
 
     let mut bitmap_info = BITMAPINFO {
         bmiHeader: BITMAPINFOHEADER {
@@ -140,16 +149,9 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     if result != bitmap.bmHeight {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
-            "failed to get DIB bits.",
+            format!("GetDIBits failed, expected {height_u32}, got {result}"),
         )));
     }
-
-    if unsafe { ReleaseDC(None, dc) } != 1 {
-        return Err(Box::new(io::Error::new(
-            ErrorKind::Other,
-            "failed to releases the DC.",
-        )));
-    };
 
     unsafe {
         DestroyIcon(icon)
