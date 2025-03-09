@@ -12,8 +12,8 @@ use image::RgbaImage;
 use windows::{
     Win32::{
         Graphics::Gdi::{
-            BI_RGB, HBITMAP, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
-            GetDIBits, GetObjectW, HDC, HGDIOBJ, ReleaseDC,
+            BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
+            GetDIBits, GetObjectW, HBITMAP, HDC, HGDIOBJ, ReleaseDC,
         },
         Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES,
         UI::{
@@ -183,11 +183,18 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
         )));
     }
 
-    Ok(RgbaImage::from_fn(width_u32, height_u32, |x, y| {
-        let idx = y as usize * width_usize + x as usize;
-        let [b, g, r, a] = buf[idx].to_le_bytes();
-        [r, g, b, a].into()
-    }))
+    let pixel_data = unsafe {
+        std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * mem::size_of::<u32>())
+    };
+
+    // BGRA -> RGBA
+    let rgba_data = pixel_data
+        .chunks_exact(4)
+        .flat_map(|px| [px[2], px[1], px[0], px[3]])
+        .collect::<Vec<_>>();
+
+    RgbaImage::from_raw(width_u32, height_u32, rgba_data)
+        .ok_or_else(|| "the container(rgba_data) is not big enough".into())
 }
 
 fn read_icon_file(icon_path: &str) -> Result<Vec<u8>, Box<dyn Error>> {
