@@ -24,6 +24,7 @@ use windows::{
     },
     core::PCWSTR,
 };
+use scopeguard::defer;
 
 pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
     let wide_path: Vec<u16> = OsStr::new(file_path).encode_wide().chain(Some(0)).collect();
@@ -57,14 +58,20 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     let mut info = MaybeUninit::uninit();
     unsafe {
         GetIconInfo(icon, info.as_mut_ptr())
-            .map_err(|_| io::Error::new(ErrorKind::Other, "failed to get icon info."))
+            .map_err(|e| io::Error::new(ErrorKind::Other, format!("GetIconInfo failed: {:?}", e)))
     }?;
     let info = unsafe { info.assume_init() };
-    unsafe {
-        DeleteObject(HGDIOBJ::from(info.hbmMask))
-            .ok()
-            .map_err(|_| io::Error::new(ErrorKind::Other, "failed to delete mask bitmap."))
-    }?;
+
+    defer! {
+        unsafe {
+            if !info.hbmMask.is_invalid() {
+                let _ = DeleteObject(HGDIOBJ::from(info.hbmMask));
+            }
+            if !info.hbmColor.is_invalid() {
+                let _ = DeleteObject(HGDIOBJ::from(info.hbmColor));
+            }
+        }
+    }
 
     let mut bitmap: MaybeUninit<BITMAP> = MaybeUninit::uninit();
     let result = unsafe {
@@ -77,7 +84,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     if result != bitmap_size_i32 {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
-            "failed to get info for the object.",
+            format!("GetObjectW failed, expected {}, got {}", bitmap_size_i32, result),
         )));
     }
     let bitmap = unsafe { bitmap.assume_init() };
@@ -88,15 +95,15 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     let height_usize = usize::try_from(bitmap.bmHeight)?;
     let buf_size = width_usize
         .checked_mul(height_usize)
-        .ok_or_else(|| io::Error::new(ErrorKind::Other, "buffer size calculation overflow."))?;
+        .ok_or_else(|| io::Error::new(ErrorKind::Other, "Buffer size overflow"))?;
 
     let mut buf = vec![0u32; buf_size];
 
     let dc = unsafe { GetDC(None) };
-    if dc == HDC(ptr::null_mut()) {
+    if dc.is_invalid() {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
-            "failed to get a handle to the DC.",
+            "GetDC returned null",
         )));
     }
 
@@ -140,11 +147,6 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
             "failed to releases the DC.",
         )));
     };
-    unsafe {
-        DeleteObject(HGDIOBJ::from(info.hbmColor))
-            .ok()
-            .map_err(|_| io::Error::new(ErrorKind::Other, "failed to delete color bitmap."))
-    }?;
 
     Ok(RgbaImage::from_fn(width_u32, height_u32, |x, y| {
         let idx = y as usize * width_usize + x as usize;
