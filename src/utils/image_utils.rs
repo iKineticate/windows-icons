@@ -5,7 +5,6 @@ use std::{
     io::{self, ErrorKind, Read},
     mem::{self, MaybeUninit},
     os::windows::ffi::OsStrExt,
-    ptr,
 };
 
 use base64::{Engine, engine::general_purpose};
@@ -14,7 +13,7 @@ use windows::{
     Win32::{
         Graphics::Gdi::{
             BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
-            GetDIBits, GetObjectW, HDC, HGDIOBJ, ReleaseDC,
+            GetDIBits, GetObjectW, HGDIOBJ, ReleaseDC,
         },
         Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES,
         UI::{
@@ -89,10 +88,14 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     }
     let bitmap = unsafe { bitmap.assume_init() };
 
-    let width_u32 = u32::try_from(bitmap.bmWidth)?;
-    let height_u32 = u32::try_from(bitmap.bmHeight)?;
-    let width_usize = usize::try_from(bitmap.bmWidth)?;
-    let height_usize = usize::try_from(bitmap.bmHeight)?;
+    let width_abs = bitmap.bmWidth.unsigned_abs();
+    let height_abs = bitmap.bmHeight.unsigned_abs();
+
+    let width_u32 = u32::try_from(width_abs)?;
+    let height_u32 = u32::try_from(height_abs)?;
+    let width_usize = usize::try_from(width_abs)?;
+    let height_usize = usize::try_from(height_abs)?;
+
     let buf_size = width_usize
         .checked_mul(height_usize)
         .ok_or_else(|| io::Error::new(ErrorKind::Other, "Buffer size overflow"))?;
