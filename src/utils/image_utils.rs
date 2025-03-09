@@ -190,18 +190,21 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     }))
 }
 
-pub fn icon_to_image(icon_path: &str) -> Result<RgbaImage, Box<dyn Error>> {
+fn read_icon_file(icon_path: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut file = File::open(icon_path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
+    Ok(buffer)
+}
+
+pub fn icon_to_image(icon_path: &str) -> Result<RgbaImage, Box<dyn Error>> {
+    let buffer = read_icon_file(icon_path)?;
     let image = image::load_from_memory(&buffer)
         .map_err(|_| io::Error::new(ErrorKind::Other, format!("failed to decode image.")))?;
     Ok(image.to_rgba8())
 }
 
 pub fn icon_to_base64(icon_path: &str) -> Result<String, Box<dyn Error>> {
-    let mut file = File::open(icon_path)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
+    let buffer = read_icon_file(icon_path)?;
     Ok(general_purpose::STANDARD.encode(&buffer))
 }
