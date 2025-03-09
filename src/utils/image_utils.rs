@@ -90,7 +90,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
         .checked_mul(height_usize)
         .ok_or_else(|| io::Error::new(ErrorKind::Other, "buffer size calculation overflow."))?;
 
-    let mut buf: Vec<u32> = Vec::with_capacity(buf_size);
+    let mut buf = vec![0u32; buf_size];
 
     let dc = unsafe { GetDC(None) };
     if dc == HDC(ptr::null_mut()) {
@@ -133,8 +133,6 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
             "failed to get DIB bits.",
         )));
     }
-
-    unsafe { buf.set_len(buf.capacity()) };
 
     if unsafe { ReleaseDC(None, dc) } != 1 {
         return Err(Box::new(io::Error::new(
