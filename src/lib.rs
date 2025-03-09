@@ -1,9 +1,7 @@
 use std::{error::Error, path::Path};
 
-use base64::Engine as _;
-use base64::engine::general_purpose;
 use image::RgbaImage;
-use utils::image_utils::get_hicon_to_image;
+use utils::image_utils::{get_hicon_to_image, image_to_base64};
 use utils::process_utils::get_process_path;
 use uwp_apps::{get_uwp_icon, get_uwp_icon_base64};
 
@@ -40,12 +38,7 @@ pub fn get_icon_base64_by_path<P: AsRef<Path>>(path: P) -> Result<String, Box<dy
         get_uwp_icon_base64(path)
     } else {
         let icon_image = get_icon_by_path(path)?;
-        let mut buffer = Vec::with_capacity(1024 * 50);
-        icon_image.write_to(
-            &mut std::io::Cursor::new(&mut buffer),
-            image::ImageFormat::Png,
-        )?;
-        Ok(general_purpose::STANDARD.encode(&buffer))
+        image_to_base64(icon_image)
     }
 }
 

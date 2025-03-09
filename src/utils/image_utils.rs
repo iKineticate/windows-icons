@@ -206,14 +206,23 @@ fn read_icon_file(icon_path: &Path) -> Result<Vec<u8>, Box<dyn Error>> {
     Ok(buffer)
 }
 
-pub fn icon_to_image(icon_path: &Path) -> Result<RgbaImage, Box<dyn Error>> {
+pub fn icon_file_to_image(icon_path: &Path) -> Result<RgbaImage, Box<dyn Error>> {
     let buffer = read_icon_file(icon_path)?;
     let image = image::load_from_memory(&buffer)
         .map_err(|e| io::Error::new(ErrorKind::Other, format!("Image decode failed: {e}")))?;
     Ok(image.to_rgba8())
 }
 
-pub fn icon_to_base64(icon_path: &Path) -> Result<String, Box<dyn Error>> {
+pub fn icon_file_to_base64(icon_path: &Path) -> Result<String, Box<dyn Error>> {
     let buffer = read_icon_file(icon_path)?;
+    Ok(general_purpose::STANDARD.encode(&buffer))
+}
+
+pub fn image_to_base64(img: RgbaImage) -> Result<String, Box<dyn Error>> {
+    let mut buffer = Vec::with_capacity(1024 * 50);
+    img.write_to(
+        &mut std::io::Cursor::new(&mut buffer),
+        image::ImageFormat::Png,
+    )?;
     Ok(general_purpose::STANDARD.encode(&buffer))
 }

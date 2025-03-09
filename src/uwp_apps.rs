@@ -9,11 +9,11 @@ use std::{
 use glob::glob;
 use image::RgbaImage;
 
-use crate::utils::image_utils::{icon_to_base64, icon_to_image};
+use crate::utils::image_utils::{icon_file_to_base64, icon_file_to_image};
 
 pub fn get_uwp_icon(file_path: &Path) -> Result<RgbaImage, Box<dyn Error>> {
     let icon_path = get_icon_file_path(file_path)?;
-    let rgba_image = icon_to_image(&icon_path).map_err(|e| {
+    let rgba_image = icon_file_to_image(&icon_path).map_err(|e| {
         io::Error::new(
             ErrorKind::Other,
             format!("Failed to get icon image for path: '{file_path:?}'\n{e}"),
@@ -24,7 +24,7 @@ pub fn get_uwp_icon(file_path: &Path) -> Result<RgbaImage, Box<dyn Error>> {
 
 pub fn get_uwp_icon_base64(file_path: &Path) -> Result<String, Box<dyn Error>> {
     let icon_path = get_icon_file_path(file_path)?;
-    let base64 = icon_to_base64(&icon_path).map_err(|e| {
+    let base64 = icon_file_to_base64(&icon_path).map_err(|e| {
         io::Error::new(
             ErrorKind::Other,
             format!("Failed to get icon base64 for path: '{file_path:?}'\n{e}"),
