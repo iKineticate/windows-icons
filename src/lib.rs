@@ -1,12 +1,9 @@
-use std::{
-    error::Error,
-    path::Path,
-};
+use std::{error::Error, path::Path};
 
 use base64::Engine as _;
 use base64::engine::general_purpose;
 use image::RgbaImage;
-use utils::image_utils::{get_hicon, hicon_to_image};
+use utils::image_utils::get_hicon_to_image;
 use utils::process_utils::get_process_path;
 use uwp_apps::{get_uwp_icon, get_uwp_icon_base64};
 
@@ -33,10 +30,7 @@ pub fn get_icon_by_path<P: AsRef<Path>>(path: P) -> Result<RgbaImage, Box<dyn Er
     if is_uwp_app(path) {
         get_uwp_icon(path)
     } else {
-        unsafe {
-            let hicon = get_hicon(path)?;
-            hicon_to_image(hicon)
-        }
+        get_hicon_to_image(path)
     }
 }
 

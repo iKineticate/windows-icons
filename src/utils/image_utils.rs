@@ -61,7 +61,12 @@ impl Drop for AutoIcon {
     }
 }
 
-pub unsafe fn get_hicon(file_path: &Path) -> Result<HICON, Box<dyn Error>> {
+pub fn get_hicon_to_image(file_path: &Path) -> Result<RgbaImage, Box<dyn Error>> {
+    let hicon = unsafe { get_hicon(file_path) }?;
+    unsafe { hicon_to_image(hicon) }
+}
+
+unsafe fn get_hicon(file_path: &Path) -> Result<HICON, Box<dyn Error>> {
     let wide_path: Vec<u16> = OsStr::new(file_path).encode_wide().chain(Some(0)).collect();
     let mut shfileinfo = MaybeUninit::<SHFILEINFOW>::uninit();
 
@@ -88,7 +93,7 @@ pub unsafe fn get_hicon(file_path: &Path) -> Result<HICON, Box<dyn Error>> {
     Ok(shfileinfo.hIcon)
 }
 
-pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
+unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     let bitmap_size_i32 = i32::try_from(mem::size_of::<BITMAP>())?;
     let biheader_size_u32 = u32::try_from(mem::size_of::<BITMAPINFOHEADER>())?;
 
