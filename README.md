@@ -59,7 +59,7 @@ This library uses the following crates:
 - `image` for image processing
 - `base64` for base64 encoding
 - `glob` for matching file paths
-- `winapi` and `windows` for Windows API interactions
+- `windows` for Windows API interactions
 
 ## Disclaimer
 
