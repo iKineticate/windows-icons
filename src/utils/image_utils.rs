@@ -9,6 +9,7 @@ use std::{
 
 use base64::{Engine, engine::general_purpose};
 use image::RgbaImage;
+use scopeguard::defer;
 use windows::{
     Win32::{
         Graphics::Gdi::{
@@ -18,12 +19,11 @@ use windows::{
         Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES,
         UI::{
             Shell::{SHFILEINFOW, SHGFI_ICON, SHGetFileInfoW},
-            WindowsAndMessaging::{GetIconInfo, HICON},
+            WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON},
         },
     },
     core::PCWSTR,
 };
-use scopeguard::defer;
 
 pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
     let wide_path: Vec<u16> = OsStr::new(file_path).encode_wide().chain(Some(0)).collect();
@@ -57,7 +57,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     let mut info = MaybeUninit::uninit();
     unsafe {
         GetIconInfo(icon, info.as_mut_ptr())
-            .map_err(|e| io::Error::new(ErrorKind::Other, format!("GetIconInfo failed: {:?}", e)))
+            .map_err(|e| io::Error::new(ErrorKind::Other, format!("GetIconInfo failed: {e:?}")))
     }?;
     let info = unsafe { info.assume_init() };
 
@@ -83,7 +83,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     if result != bitmap_size_i32 {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
-            format!("GetObjectW failed, expected {}, got {}", bitmap_size_i32, result),
+            format!("GetObjectW failed, expected {bitmap_size_i32}, got {result}"),
         )));
     }
     let bitmap = unsafe { bitmap.assume_init() };
@@ -150,6 +150,11 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
             "failed to releases the DC.",
         )));
     };
+
+    unsafe {
+        DestroyIcon(icon)
+            .map_err(|e| io::Error::new(ErrorKind::Other, format!("DestroyIcon failed: {e:?}")))
+    }?;
 
     Ok(RgbaImage::from_fn(width_u32, height_u32, |x, y| {
         let idx = y as usize * width_usize + x as usize;
