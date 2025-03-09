@@ -83,14 +83,6 @@ pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
     }
 
     let shfileinfo = unsafe { shfileinfo.assume_init() };
-    let hicon = shfileinfo.hIcon;
-
-    if hicon.0.is_null() {
-        return Err(Box::new(io::Error::new(
-            ErrorKind::Other,
-            "hIcon is invalid.",
-        )));
-    }
 
     Ok(shfileinfo.hIcon)
 }
@@ -126,13 +118,11 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     }
     let bitmap = unsafe { bitmap.assume_init() };
 
-    let width_abs = bitmap.bmWidth.unsigned_abs();
-    let height_abs = bitmap.bmHeight.unsigned_abs();
-
-    let width_u32 = u32::try_from(width_abs)?;
-    let height_u32 = u32::try_from(height_abs)?;
-    let width_usize = usize::try_from(width_abs)?;
-    let height_usize = usize::try_from(height_abs)?;
+    let width_u32 = bitmap.bmWidth.unsigned_abs();
+    let height_u32 = bitmap.bmHeight.unsigned_abs();
+    let width_usize = usize::try_from(width_u32)?;
+    let height_usize = usize::try_from(height_u32)?;
+    let expected_lines = i32::try_from(height_u32)?;
 
     let buf_size = width_usize
         .checked_mul(height_usize)
@@ -176,10 +166,16 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
             DIB_RGB_COLORS,
         )
     };
-    if result != bitmap.bmHeight {
+    if result == 0 {
+        let last_error = windows::core::Error::from_win32();
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
-            format!("GetDIBits failed, expected {height_u32}, got {result}"),
+            format!("GetDIBits failed: {last_error}."),
+        )));
+    } else if result != expected_lines {
+        return Err(Box::new(io::Error::new(
+            ErrorKind::Other,
+            format!("GetDIBits failed, expected lines: `{expected_lines}`, got: `{result}`"),
         )));
     }
 
@@ -207,7 +203,7 @@ fn read_icon_file(icon_path: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 pub fn icon_to_image(icon_path: &str) -> Result<RgbaImage, Box<dyn Error>> {
     let buffer = read_icon_file(icon_path)?;
     let image = image::load_from_memory(&buffer)
-        .map_err(|_| io::Error::new(ErrorKind::Other, format!("failed to decode image.")))?;
+        .map_err(|e| io::Error::new(ErrorKind::Other, format!("Image decode failed: {e}")))?;
     Ok(image.to_rgba8())
 }
 

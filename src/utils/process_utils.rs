@@ -20,7 +20,7 @@ pub fn get_process_path(process_id: u32) -> Result<String, windows::core::Error>
         CloseHandle(process_handle).map_err(|_| {
             windows::core::Error::new(
                 windows::core::HRESULT(-1),
-                "failed to close process handle.".to_string(),
+                "failed to close process handle.",
             )
         })?;
 
@@ -30,10 +30,7 @@ pub fn get_process_path(process_id: u32) -> Result<String, windows::core::Error>
 
         buffer.truncate(size as usize);
         let path = OsString::from_wide(&buffer).into_string().map_err(|_| {
-            windows::core::Error::new(
-                windows::core::HRESULT(-1),
-                "invalid Unicode in path.".to_string(),
-            )
+            windows::core::Error::new(windows::core::HRESULT(-1), "invalid Unicode in path.")
         })?;
         Ok(path)
     }

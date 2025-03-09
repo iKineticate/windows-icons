@@ -66,7 +66,7 @@ fn get_icon_file_path(app_path: &Path) -> Result<String, Box<dyn Error>> {
         let icon_path = extract_icon_path(&manifest_content)?;
         let icon_full_path = package_folder.join(icon_path);
         if icon_full_path.exists() {
-            return Ok(icon_full_path
+            Ok(icon_full_path
                 .to_str()
                 .map(|s| s.to_owned())
                 .ok_or_else(|| {
@@ -74,7 +74,7 @@ fn get_icon_file_path(app_path: &Path) -> Result<String, Box<dyn Error>> {
                         ErrorKind::Other,
                         format!("failed to convert path to string: {:?}.", icon_full_path),
                     )
-                })?);
+                })?)
         } else {
             find_matching_logo_file(&icon_full_path, package_folder)
         }
@@ -113,20 +113,17 @@ fn find_matching_logo_file(
 ) -> Result<String, Box<dyn Error>> {
     let parent_path = icon_full_path
         .parent()
-        .map(Path::to_str)
-        .flatten()
+        .and_then(Path::to_str)
         .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no directory found"))?;
 
     let filter_name = icon_full_path
         .file_stem()
-        .map(OsStr::to_str)
-        .flatten()
+        .and_then(OsStr::to_str)
         .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no file name found"))?;
 
     let extension = icon_full_path
         .extension()
-        .map(OsStr::to_str)
-        .flatten()
+        .and_then(OsStr::to_str)
         .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "no extension found"))?;
 
     // '*' might be ".scale-size", and may include theme characters "contrast-white" and "contrast-black"
@@ -175,10 +172,7 @@ fn fuzzy_get_icon_file_path(package_folder: &Path) -> Result<String, Box<dyn Err
             for logo_path in glob(&pattern)?.filter_map(Result::ok) {
                 if logo_path.is_file() {
                     let metadata = fs::metadata(&logo_path).map_err(|_| {
-                        io::Error::new(
-                            ErrorKind::NotFound,
-                            format!("failed to get logo information"),
-                        )
+                        io::Error::new(ErrorKind::NotFound, "failed to get logo information")
                     })?;
                     let logo_path = logo_path.to_string_lossy().into_owned();
                     let logo_size = metadata.len();
