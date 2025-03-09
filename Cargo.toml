@@ -3,7 +3,7 @@ name = "windows-icons"
 description = "A simple library to extract icons from files on Windows"
 version = "0.2.1"
 authors = ["Zach Connelly"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 
 [dependencies]
@@ -13,7 +13,7 @@ winapi = { version = "0.3.9", features = ["shellapi"] }
 glob = "0.3.2"
 
 [dependencies.windows]
-version = "0.59.0"
+version = "0.60.0"
 features = [
     "Win32_UI",
     "Win32_Foundation",
