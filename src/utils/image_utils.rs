@@ -27,17 +27,18 @@ use windows::{
 
 pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
     let wide_path: Vec<u16> = OsStr::new(file_path).encode_wide().chain(Some(0)).collect();
-    let mut shfileinfo: SHFILEINFOW = unsafe { std::mem::zeroed() };
+    let mut shfileinfo = MaybeUninit::<SHFILEINFOW>::uninit();
 
     let result = unsafe {
         SHGetFileInfoW(
             PCWSTR::from_raw(wide_path.as_ptr()),
             FILE_FLAGS_AND_ATTRIBUTES(0),
-            Some(&mut shfileinfo as *mut SHFILEINFOW),
+            Some(shfileinfo.as_mut_ptr()),
             std::mem::size_of::<SHFILEINFOW>() as u32,
             SHGFI_ICON,
         )
     };
+    let shfileinfo = unsafe { shfileinfo.assume_init() };
 
     if result == 0 {
         return Err(Box::new(io::Error::new(
