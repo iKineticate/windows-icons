@@ -5,6 +5,7 @@ use std::{
     io::{self, ErrorKind, Read},
     mem::{self, MaybeUninit},
     os::windows::ffi::OsStrExt,
+    path::Path,
 };
 
 use base64::{Engine, engine::general_purpose};
@@ -60,7 +61,7 @@ impl Drop for AutoIcon {
     }
 }
 
-pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
+pub unsafe fn get_hicon(file_path: &Path) -> Result<HICON, Box<dyn Error>> {
     let wide_path: Vec<u16> = OsStr::new(file_path).encode_wide().chain(Some(0)).collect();
     let mut shfileinfo = MaybeUninit::<SHFILEINFOW>::uninit();
 
@@ -78,7 +79,7 @@ pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
         let last_error = windows::core::Error::from_win32();
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
-            format!("failed to get hIcon for the file: {file_path}: {last_error}."),
+            format!("failed to get hIcon for the file: {file_path:?}: {last_error}."),
         )));
     }
 
@@ -94,7 +95,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     let mut info = MaybeUninit::uninit();
     unsafe {
         GetIconInfo(icon, info.as_mut_ptr())
-            .map_err(|e| io::Error::new(ErrorKind::Other, format!("GetIconInfo failed: {e:?}")))
+            .map_err(|e| io::Error::new(ErrorKind::Other, format!("GetIconInfo failed: {e}")))
     }?;
     let info = unsafe { info.assume_init() };
 
@@ -193,21 +194,21 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
         .ok_or_else(|| "the container(rgba_data) is not big enough".into())
 }
 
-fn read_icon_file(icon_path: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+fn read_icon_file(icon_path: &Path) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut file = File::open(icon_path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
     Ok(buffer)
 }
 
-pub fn icon_to_image(icon_path: &str) -> Result<RgbaImage, Box<dyn Error>> {
+pub fn icon_to_image(icon_path: &Path) -> Result<RgbaImage, Box<dyn Error>> {
     let buffer = read_icon_file(icon_path)?;
     let image = image::load_from_memory(&buffer)
         .map_err(|e| io::Error::new(ErrorKind::Other, format!("Image decode failed: {e}")))?;
     Ok(image.to_rgba8())
 }
 
-pub fn icon_to_base64(icon_path: &str) -> Result<String, Box<dyn Error>> {
+pub fn icon_to_base64(icon_path: &Path) -> Result<String, Box<dyn Error>> {
     let buffer = read_icon_file(icon_path)?;
     Ok(general_purpose::STANDARD.encode(&buffer))
 }
