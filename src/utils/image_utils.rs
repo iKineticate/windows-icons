@@ -9,11 +9,10 @@ use std::{
 
 use base64::{Engine, engine::general_purpose};
 use image::RgbaImage;
-use scopeguard::defer;
 use windows::{
     Win32::{
         Graphics::Gdi::{
-            BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
+            BI_RGB, HBITMAP, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
             GetDIBits, GetObjectW, HDC, HGDIOBJ, ReleaseDC,
         },
         Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES,
@@ -29,7 +28,35 @@ struct ScopedDc(HDC);
 
 impl Drop for ScopedDc {
     fn drop(&mut self) {
-        unsafe { ReleaseDC(None, self.0) };
+        if !self.0.is_invalid() {
+            unsafe {
+                ReleaseDC(None, self.0);
+            }
+        }
+    }
+}
+
+struct AutoBitmap(HBITMAP);
+
+impl Drop for AutoBitmap {
+    fn drop(&mut self) {
+        if !self.0.is_invalid() {
+            unsafe {
+                let _ = DeleteObject(HGDIOBJ::from(self.0));
+            }
+        }
+    }
+}
+
+struct AutoIcon(HICON);
+
+impl Drop for AutoIcon {
+    fn drop(&mut self) {
+        if !self.0.is_invalid() {
+            unsafe {
+                let _ = DestroyIcon(self.0);
+            }
+        }
     }
 }
 
@@ -46,12 +73,21 @@ pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
             SHGFI_ICON,
         )
     };
-    let shfileinfo = unsafe { shfileinfo.assume_init() };
 
     if result == 0 {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
             format!("failed to get hIcon for the file: {file_path}."),
+        )));
+    }
+
+    let shfileinfo = unsafe { shfileinfo.assume_init() };
+    let hicon = shfileinfo.hIcon;
+
+    if hicon.is_invalid() {
+        return Err(Box::new(io::Error::new(
+            ErrorKind::Other,
+            format!("hIcon is invalid."),
         )));
     }
 
@@ -69,16 +105,9 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     }?;
     let info = unsafe { info.assume_init() };
 
-    defer! {
-        unsafe {
-            if !info.hbmMask.is_invalid() {
-                let _ = DeleteObject(HGDIOBJ::from(info.hbmMask));
-            }
-            if !info.hbmColor.is_invalid() {
-                let _ = DeleteObject(HGDIOBJ::from(info.hbmColor));
-            }
-        }
-    }
+    let _hbm_mask = AutoBitmap(info.hbmMask);
+    let _hbm_color = AutoBitmap(info.hbmColor);
+    let _icon_guard = AutoIcon(icon);
 
     let mut bitmap: MaybeUninit<BITMAP> = MaybeUninit::uninit();
     let result = unsafe {
@@ -152,11 +181,6 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
             format!("GetDIBits failed, expected {height_u32}, got {result}"),
         )));
     }
-
-    unsafe {
-        DestroyIcon(icon)
-            .map_err(|e| io::Error::new(ErrorKind::Other, format!("DestroyIcon failed: {e:?}")))
-    }?;
 
     Ok(RgbaImage::from_fn(width_u32, height_u32, |x, y| {
         let idx = y as usize * width_usize + x as usize;
