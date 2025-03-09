@@ -3,8 +3,8 @@ use std::{
     io::{self, ErrorKind},
 };
 
-use base64::engine::general_purpose;
 use base64::Engine as _;
+use base64::engine::general_purpose;
 use image::RgbaImage;
 use utils::image_utils::{get_hicon, hicon_to_image};
 use utils::process_utils::get_process_path;

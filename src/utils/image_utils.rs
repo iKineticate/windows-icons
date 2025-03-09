@@ -8,34 +8,36 @@ use std::{
     ptr,
 };
 
-use base64::{engine::general_purpose, Engine};
+use base64::{Engine, engine::general_purpose};
 use image::RgbaImage;
 use windows::{
-    core::PCWSTR,
     Win32::{
         Graphics::Gdi::{
-            DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO,
-            BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HDC, HGDIOBJ,
+            BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
+            GetDIBits, GetObjectW, HDC, HGDIOBJ, ReleaseDC,
         },
         Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES,
         UI::{
-            Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON},
+            Shell::{SHFILEINFOW, SHGFI_ICON, SHGetFileInfoW},
             WindowsAndMessaging::{GetIconInfo, HICON},
         },
     },
+    core::PCWSTR,
 };
 
 pub unsafe fn get_hicon(file_path: &str) -> Result<HICON, Box<dyn Error>> {
     let wide_path: Vec<u16> = OsStr::new(file_path).encode_wide().chain(Some(0)).collect();
-    let mut shfileinfo: SHFILEINFOW = std::mem::zeroed();
+    let mut shfileinfo: SHFILEINFOW = unsafe { std::mem::zeroed() };
 
-    let result = SHGetFileInfoW(
-        PCWSTR::from_raw(wide_path.as_ptr()),
-        FILE_FLAGS_AND_ATTRIBUTES(0),
-        Some(&mut shfileinfo as *mut SHFILEINFOW),
-        std::mem::size_of::<SHFILEINFOW>() as u32,
-        SHGFI_ICON,
-    );
+    let result = unsafe {
+        SHGetFileInfoW(
+            PCWSTR::from_raw(wide_path.as_ptr()),
+            FILE_FLAGS_AND_ATTRIBUTES(0),
+            Some(&mut shfileinfo as *mut SHFILEINFOW),
+            std::mem::size_of::<SHFILEINFOW>() as u32,
+            SHGFI_ICON,
+        )
+    };
 
     if result == 0 {
         return Err(Box::new(io::Error::new(
@@ -52,26 +54,32 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     let biheader_size_u32 = u32::try_from(mem::size_of::<BITMAPINFOHEADER>())?;
 
     let mut info = MaybeUninit::uninit();
-    GetIconInfo(icon, info.as_mut_ptr())
-        .map_err(|_| io::Error::new(ErrorKind::Other, "failed to get icon info."))?;
-    let info = info.assume_init();
-    DeleteObject(HGDIOBJ::from(info.hbmMask))
-        .ok()
-        .map_err(|_| io::Error::new(ErrorKind::Other, "failed to delete mask bitmap."))?;
+    unsafe {
+        GetIconInfo(icon, info.as_mut_ptr())
+            .map_err(|_| io::Error::new(ErrorKind::Other, "failed to get icon info."))
+    }?;
+    let info = unsafe { info.assume_init() };
+    unsafe {
+        DeleteObject(HGDIOBJ::from(info.hbmMask))
+            .ok()
+            .map_err(|_| io::Error::new(ErrorKind::Other, "failed to delete mask bitmap."))
+    }?;
 
     let mut bitmap: MaybeUninit<BITMAP> = MaybeUninit::uninit();
-    let result = GetObjectW(
-        HGDIOBJ::from(info.hbmColor),
-        bitmap_size_i32,
-        Some(bitmap.as_mut_ptr().cast()),
-    );
+    let result = unsafe {
+        GetObjectW(
+            HGDIOBJ::from(info.hbmColor),
+            bitmap_size_i32,
+            Some(bitmap.as_mut_ptr().cast()),
+        )
+    };
     if result != bitmap_size_i32 {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
             "failed to get info for the object.",
         )));
     }
-    let bitmap = bitmap.assume_init();
+    let bitmap = unsafe { bitmap.assume_init() };
 
     let width_u32 = u32::try_from(bitmap.bmWidth)?;
     let height_u32 = u32::try_from(bitmap.bmHeight)?;
@@ -83,7 +91,7 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
 
     let mut buf: Vec<u32> = Vec::with_capacity(buf_size);
 
-    let dc = GetDC(None);
+    let dc = unsafe { GetDC(None) };
     if dc == HDC(ptr::null_mut()) {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
@@ -107,15 +115,17 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
         },
         bmiColors: [Default::default()],
     };
-    let result = GetDIBits(
-        dc,
-        info.hbmColor,
-        0,
-        height_u32,
-        Some(buf.as_mut_ptr().cast()),
-        &mut bitmap_info,
-        DIB_RGB_COLORS,
-    );
+    let result = unsafe {
+        GetDIBits(
+            dc,
+            info.hbmColor,
+            0,
+            height_u32,
+            Some(buf.as_mut_ptr().cast()),
+            &mut bitmap_info,
+            DIB_RGB_COLORS,
+        )
+    };
     if result != bitmap.bmHeight {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
@@ -123,17 +133,19 @@ pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
         )));
     }
 
-    buf.set_len(buf.capacity());
+    unsafe { buf.set_len(buf.capacity()) };
 
-    if ReleaseDC(None, dc) != 1 {
+    if unsafe { ReleaseDC(None, dc) } != 1 {
         return Err(Box::new(io::Error::new(
             ErrorKind::Other,
             "failed to releases the DC.",
         )));
     };
-    DeleteObject(HGDIOBJ::from(info.hbmColor))
-        .ok()
-        .map_err(|_| io::Error::new(ErrorKind::Other, "failed to delete color bitmap."))?;
+    unsafe {
+        DeleteObject(HGDIOBJ::from(info.hbmColor))
+            .ok()
+            .map_err(|_| io::Error::new(ErrorKind::Other, "failed to delete color bitmap."))
+    }?;
 
     Ok(RgbaImage::from_fn(width_u32, height_u32, |x, y| {
         let idx = y as usize * width_usize + x as usize;
