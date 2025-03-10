@@ -25,14 +25,12 @@ use windows::{
     core::PCWSTR,
 };
 
-struct ScopedDc(HDC);
+struct AutoDc(HDC);
 
-impl Drop for ScopedDc {
+impl Drop for AutoDc {
     fn drop(&mut self) {
         if !self.0.0.is_null() {
-            unsafe {
-                ReleaseDC(None, self.0);
-            }
+            let _ = unsafe { ReleaseDC(None, self.0) };
         }
     }
 }
@@ -42,9 +40,7 @@ struct AutoBitmap(HBITMAP);
 impl Drop for AutoBitmap {
     fn drop(&mut self) {
         if !self.0.0.is_null() {
-            unsafe {
-                let _ = DeleteObject(HGDIOBJ::from(self.0));
-            }
+            let _ = unsafe { DeleteObject(HGDIOBJ::from(self.0)) };
         }
     }
 }
@@ -54,9 +50,7 @@ struct AutoIcon(HICON);
 impl Drop for AutoIcon {
     fn drop(&mut self) {
         if !self.0.0.is_null() {
-            unsafe {
-                let _ = DestroyIcon(self.0);
-            }
+            let _ = unsafe { DestroyIcon(self.0) };
         }
     }
 }
@@ -93,7 +87,7 @@ unsafe fn get_hicon(file_path: &Path) -> Result<HICON, Box<dyn Error>> {
     Ok(shfileinfo.hIcon)
 }
 
-unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
+pub unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
     let bitmap_size_i32 = i32::try_from(mem::size_of::<BITMAP>())?;
     let biheader_size_u32 = u32::try_from(mem::size_of::<BITMAPINFOHEADER>())?;
 
@@ -143,7 +137,7 @@ unsafe fn hicon_to_image(icon: HICON) -> Result<RgbaImage, Box<dyn Error>> {
             "GetDC returned null",
         )));
     }
-    let _dc_guard = ScopedDc(dc);
+    let _dc_guard = AutoDc(dc);
 
     let mut bitmap_info = BITMAPINFO {
         bmiHeader: BITMAPINFOHEADER {
@@ -224,5 +218,5 @@ pub fn image_to_base64(img: RgbaImage) -> Result<String, Box<dyn Error>> {
         &mut std::io::Cursor::new(&mut buffer),
         image::ImageFormat::Png,
     )?;
-    Ok(general_purpose::STANDARD.encode(&buffer))
+    Ok(general_purpose::STANDARD.encode(buffer))
 }
