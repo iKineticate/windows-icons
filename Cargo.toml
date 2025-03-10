@@ -2,7 +2,7 @@
 name = "windows-icons"
 description = "A simple library to extract icons from files on Windows"
 version = "0.2.1"
-authors = ["Zach Connelly"]
+authors = ["Zach Connelly", "iKineticate"]
 edition = "2024"
 license = "MIT"
 
