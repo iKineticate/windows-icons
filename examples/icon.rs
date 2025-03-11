@@ -1,7 +1,4 @@
-use windows_icons::{
-    get_icon_base64_by_path, get_icon_base64_by_process_id, get_icon_by_path,
-    get_icon_by_process_id,
-};
+use windows_icons::{get_icon_base64_by_path, get_icon_by_path};
 
 fn main() {
     let _ = std::fs::create_dir("output");
@@ -23,13 +20,4 @@ fn main() {
 
     let base64 = get_icon_base64_by_path("C:\\Windows\\System32\\cmd.exe").unwrap();
     println!("Cmd: {}", base64);
-
-    // Substitute the process id to test
-    let process_id = 0000;
-
-    let base64 = get_icon_base64_by_process_id(process_id).unwrap();
-    println!("Process {}: {}", process_id, base64);
-
-    let icon = get_icon_by_process_id(process_id).unwrap();
-    icon.save("output/process.png").unwrap();
 }

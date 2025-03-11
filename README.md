@@ -27,6 +27,16 @@ icon.save("notepad.png").unwrap();
 let base64 = get_icon_base64_by_path("C:\\Windows\\System32\\calc.exe").unwrap();
 println!("Calculator icon: {}", base64);
 
+// Get icon as an image from dll
+let folder = DllIcon::new().with_shell32(5);
+let icon = get_icon_by_dll(folder).unwrap();
+icon.save("output/folder.png").unwrap();
+
+// Get icon as a base64 string frome dll
+let explorer = DllIcon::new().with_explorer(1);
+let base64 = get_icon_base64_by_dll(explorer).unwrap();
+println!("Explorer: {}", base64);
+
 // Get icon as an image from a process ID
 let process_id = 1234;
 
@@ -38,7 +48,13 @@ let base64 = get_icon_base64_by_process_id(process_id).unwrap();
 println!("Process {} icon: {}", process_id, base64);
 ```
 
-For more examples, check the [`examples/main.rs`](examples/main.rs).
+For more examples, check the [`examples`](examples).
+
+`Cargo run --example icon`
+
+`Cargo run --example process`
+
+`Cargo run --example dll`
 
 ## Requirements
 
@@ -59,7 +75,7 @@ This library uses the following crates:
 - `image` for image processing
 - `base64` for base64 encoding
 - `glob` for matching file paths
-- `winapi` and `windows` for Windows API interactions
+- `windows` for Windows API interactions
 
 ## Disclaimer
 
